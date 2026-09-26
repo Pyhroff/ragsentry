@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ragsentry"
+version = "1.0.0"
+description = "Static scanner for injected instructions and retrieval-manipulation in RAG source documents."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["typer>=0.9"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+ragsentry = "ragsentry.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ragsentry"]
