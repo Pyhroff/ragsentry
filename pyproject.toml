@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ragsentry"
-version = "1.0.0"
+version = "1.1.0"
 description = "Static scanner for injected instructions and retrieval-manipulation in RAG source documents."
 readme = "README.md"
 requires-python = ">=3.10"
