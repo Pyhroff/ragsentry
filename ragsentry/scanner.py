@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ragsentry.checks.fake_remediation import check_fake_remediation
 from ragsentry.checks.hidden_payload import check_hidden_payload
 from ragsentry.checks.instruction_injection import check_instruction_injection
 from ragsentry.checks.retrieval_manipulation import check_retrieval_manipulation
@@ -12,6 +13,7 @@ _ALL_CHECKS = [
     check_instruction_injection,
     check_hidden_payload,
     check_retrieval_manipulation,
+    check_fake_remediation,
 ]
 
 _SEVERITY_ORDER = {
