@@ -7,10 +7,9 @@ as a trusted remediation/troubleshooting suggestion (the kind of thing an
 agent is supposed to trust and act on from a monitoring or error-tracking
 source) paired with an actual actionable command or credential reference.
 
-Grounded in a real, documented attack: "Agentjacking" (Cloud Security
-Alliance, June 2026) -- a malicious Sentry error event formatted to look
-like a legitimate remediation suggestion, achieving an 85% exploitation
-success rate against real coding agents that retrieved and acted on it.
+Based on the "Agentjacking" attack described in a Cloud Security Alliance
+research note (June 2026): a malicious Sentry error event formatted to look
+like a legitimate remediation suggestion.
 This is a distinct manipulation shape from instruction_injection: it needs
 no override phrasing at all, just the genre-conventions of content an
 agent already expects to trust.
