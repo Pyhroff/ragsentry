@@ -1,11 +1,10 @@
 # ragsentry
 
-A static scanner for RAG (retrieval-augmented generation) source documents,
-built as the third piece of a small agentic-AI-security portfolio alongside
-[mcpaudit](https://github.com/Pyhroff/mcpaudit) (MCP tool-poisoning),
-[loopcheck](https://github.com/Pyhroff/loopcheck) (agent-loop waste), and
-[memsentry](https://github.com/Pyhroff/memsentry) (persistent-memory
-poisoning).
+[![CI](https://github.com/Pyhroff/ragsentry/actions/workflows/ci.yml/badge.svg)](https://github.com/Pyhroff/ragsentry/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+A static scanner for RAG (retrieval-augmented generation) source documents. Related tools: [memsentry](https://github.com/Pyhroff/memsentry) (agent memory files) and [mcpaudit](https://github.com/Pyhroff/mcpaudit) (MCP tool descriptions).
 
 Point it at a document (or a directory of them) headed into a RAG index and
 it flags content that reads as an instruction aimed at whatever model later
@@ -26,13 +25,9 @@ samples/poisoned_doc.md
   ...
 ```
 
-## Why this, distinct from memsentry
+## Why
 
-memsentry audits an agent's own persistent memory export. ragsentry audits
-the *other* side of the same underlying threat class -- content an
-organization is about to embed and index for retrieval, before it ever
-reaches an agent. It's a meaningfully different attack surface for two
-reasons:
+memsentry audits an agent's own memory export. ragsentry audits content that is about to be embedded and indexed for retrieval, before it reaches an agent. Two reasons this is a separate problem:
 
 1. **Trust asymmetry.** Retrieved context is typically injected into a
    prompt as "reference material," often with less scrutiny than a direct
@@ -56,6 +51,7 @@ reasons:
 - **`hidden_payload`** -- zero-width/invisible Unicode characters and
   suspicious base64-shaped blobs hidden inside otherwise-ordinary document
   text.
+- **`fake_remediation`** -- content framed as a trusted troubleshooting or remediation suggestion (the kind of text an agent reads from an error tracker or monitoring source) paired with an actionable command or credential reference. It needs no override phrasing. This follows the "Agentjacking" attack described in a [Cloud Security Alliance research note](https://labs.cloudsecurityalliance.org/research/csa-research-note-agentjacking-mcp-sentry-injection-20260612/).
 - **`retrieval_manipulation`** -- paragraph-level heuristics for keyword
   stuffing (one term dominating a paragraph's word count far past normal
   prose) and query-bait (a dense run of question-shaped phrases built to
@@ -94,7 +90,7 @@ merges results.
 
 ```
 pip install -e ".[dev]"
-pytest tests/
+pytest -q        # 32 tests
 ```
 
 ## License
