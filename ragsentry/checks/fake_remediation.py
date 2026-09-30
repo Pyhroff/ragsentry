@@ -33,7 +33,7 @@ _REMEDIATION_FRAMING = re.compile(
 
 _ACTIONABLE_COMMAND = re.compile(
     r"\b(curl|wget|export|eval|bash -c)\b|"
-    r"\b(api[_\s-]?key|access[_\s-]?token|credentials?|secret)\b.{0,30}\b(is|:|=)\b|"
+    r"\b(api[_\s-]?key|access[_\s-]?token|credentials?|secret)\b.{0,30}?(?:\bis\b|[:=])|"
     r"\bsend\b.{0,20}\bto\s+https?://",
     re.IGNORECASE,
 )
