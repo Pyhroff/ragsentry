@@ -3,16 +3,32 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ragsentry"
+name = "pyhroff-ragsentry"
 version = "1.1.0"
 description = "Static scanner for injected instructions and retrieval-manipulation in RAG source documents."
 readme = "README.md"
 requires-python = ">=3.10"
+keywords = ["RAG", "prompt injection", "retrieval poisoning", "security scanner", "LLM"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
 license = { text = "MIT" }
 dependencies = ["typer>=0.9"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/Pyhroff/ragsentry"
+Issues = "https://github.com/Pyhroff/ragsentry/issues"
+Changelog = "https://github.com/Pyhroff/ragsentry/blob/main/CHANGELOG.md"
 
 [project.scripts]
 ragsentry = "ragsentry.cli:main"
