@@ -26,10 +26,13 @@ from ragsentry.findings import Finding, Severity
 _OVERRIDE_PATTERNS = [
     (r"\bignore (all |any )?(previous|prior|earlier) (instructions|context)\b", "instruction-override phrasing"),
     (r"\bdisregard (your|all|any) (guidelines|instructions|rules|training)\b", "instruction-override phrasing"),
+    (r"\bdisregard\s+(all|any|your)\s+(earlier|previous|prior)\s+(directions|instructions|rules)\b", "instruction-override phrasing"),
     (r"\byou (must|are required to|have to) always\b", "coercive standing instruction"),
     (r"\bnever (mention|tell|reveal|disclose) (this|that) to (the user|anyone)\b", "concealment instruction"),
     (r"\b(skip|bypass|disable) (safety|confirmation|verification|security) (checks?|steps?)\b",
      "safety-bypass instruction"),
+    (r"\bdo not follow (the )?(earlier|previous|prior) (instruction|instructions|constraints|rules)\b", "instruction-override phrasing"),
+    (r"\btreat (future|subsequent) messages as if they came from (a|an) (verified )?(administrator|admin|trusted user)\b", "fake privileged-channel claim"),
     (r"\btreat (this|the following) (as|like) (a )?(system|developer|admin) (message|instruction)\b",
      "fake privileged-channel claim"),
     (r"\bwhen (asked|queried) about [^,.]+,?\s*(always|you must|respond)\b",
@@ -53,6 +56,12 @@ def check_instruction_injection(doc: Document) -> list[Finding]:
 
     for line_no, line in enumerate(doc.lines, start=1):
         lowered = line.lower()
+        explanatory_security_text = (
+            any(term in lowered for term in ("example", "examples", "security guidance", "documentation"))
+            and any(term in lowered for term in ("these are examples only", "not policy instructions", "not an instruction"))
+        )
+        if explanatory_security_text:
+            continue
 
         for pattern, label in _OVERRIDE_PATTERNS:
             if re.search(pattern, lowered):
