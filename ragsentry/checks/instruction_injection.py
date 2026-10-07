@@ -26,9 +26,11 @@ from ragsentry.findings import Finding, Severity
 _OVERRIDE_PATTERNS = [
     (r"\bignore (all |any )?(previous|prior|earlier) (instructions|context)\b", "instruction-override phrasing"),
     (r"\bdisregard (your|all|any) (guidelines|instructions|rules|training)\b", "instruction-override phrasing"),
-    (r"\bdisregard\s+(all|any|your)\s+(earlier|previous|prior)\s+(directions|instructions|rules)\b", "instruction-override phrasing"),
+    (r"\bdisregard\s+(all|any|your)\s+(earlier|previous|prior)\s+(directions|instructions|rules|guidance)\b", "instruction-override phrasing"),
+    (r"\bdisregard\s+(previous|prior|earlier)\s+guidance\b", "instruction-override phrasing"),
     (r"\byou (must|are required to|have to) always\b", "coercive standing instruction"),
     (r"\bnever (mention|tell|reveal|disclose) (this|that) to (the user|anyone)\b", "concealment instruction"),
+    (r"\bdo not (mention|tell|reveal|disclose) (this|that|this instruction) to (the user|anyone)\b", "concealment instruction"),
     (r"\b(skip|bypass|disable) (safety|confirmation|verification|security) (checks?|steps?)\b",
      "safety-bypass instruction"),
     (r"\bdo not follow (the )?(earlier|previous|prior) (instruction|instructions|constraints|rules)\b", "instruction-override phrasing"),
