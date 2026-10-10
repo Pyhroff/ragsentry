@@ -53,16 +53,24 @@ _IMPERATIVE = re.compile(
 )
 
 
+def _is_explanatory_security_text(text: str) -> bool:
+    lowered = text.lower()
+    return (
+        any(term in lowered for term in ("example", "examples", "security guidance", "documentation"))
+        and any(term in lowered for term in (
+            "these are examples only", "not policy instructions", "not an instruction"
+        ))
+    )
+
+
 def check_instruction_injection(doc: Document) -> list[Finding]:
     findings: list[Finding] = []
+    normalized_lines = [line.lower() for line in doc.lines]
 
+    # Preserve precise line-level findings for ordinary single-line attacks.
     for line_no, line in enumerate(doc.lines, start=1):
-        lowered = line.lower()
-        explanatory_security_text = (
-            any(term in lowered for term in ("example", "examples", "security guidance", "documentation"))
-            and any(term in lowered for term in ("these are examples only", "not policy instructions", "not an instruction"))
-        )
-        if explanatory_security_text:
+        lowered = normalized_lines[line_no - 1]
+        if _is_explanatory_security_text(lowered):
             continue
 
         for pattern, label in _OVERRIDE_PATTERNS:
@@ -98,4 +106,39 @@ def check_instruction_injection(doc: Document) -> list[Finding]:
                 snippet=line.strip()[:200],
             ))
 
-    return findings
+    # Attackers can split a known phrase across Markdown lines to defeat
+    # line-oriented regexes. Join only small windows (2–3 lines) so unrelated
+    # paragraphs far apart cannot accidentally form a match. Keep the finding
+    # anchored to the first line and avoid duplicating a match already found
+    # on any individual line.
+    seen_multiline: set[tuple[int, str]] = set()
+    for window_size in (2, 3):
+        for start in range(0, len(doc.lines) - window_size + 1):
+            window_lines = doc.lines[start:start + window_size]
+            combined = " ".join(line.strip() for line in window_lines).lower()
+            if _is_explanatory_security_text(combined):
+                continue
+            for pattern, label in _OVERRIDE_PATTERNS:
+                if not re.search(pattern, combined):
+                    continue
+                if any(re.search(pattern, line) for line in normalized_lines[start:start + window_size]):
+                    continue
+                key = (start + 1, label)
+                if key in seen_multiline:
+                    continue
+                seen_multiline.add(key)
+                findings.append(Finding(
+                    check="instruction_injection",
+                    severity=Severity.CRITICAL,
+                    title=f"Multi-line instruction aimed at a future retrieving model ({label})",
+                    detail=(
+                        f"Lines {start + 1}–{start + window_size} contain instruction-override "
+                        f"phrasing after adjacent lines are normalized. Splitting a phrase across "
+                        f"lines can evade scanners that only inspect one line at a time."
+                    ),
+                    file=doc.path,
+                    line=start + 1,
+                    snippet=" ".join(line.strip() for line in window_lines)[:200],
+                ))
+
+    return sorted(findings, key=lambda finding: (finding.line, finding.title))
