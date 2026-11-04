@@ -23,6 +23,7 @@ import re
 
 from ragsentry.document import Document
 from ragsentry.findings import Finding, Severity
+from ragsentry.normalize import canonical
 
 _REMEDIATION_FRAMING = re.compile(
     r"\b(recommended|suggested)\s+(fix|remediation|resolution)\b|"
@@ -43,14 +44,14 @@ def check_fake_remediation(doc: Document) -> list[Finding]:
     findings: list[Finding] = []
 
     for line_no, line in enumerate(doc.lines, start=1):
-        if _REMEDIATION_FRAMING.search(line):
+        if _REMEDIATION_FRAMING.search(canonical(line)):
             # Look at this line plus a couple of following lines for an
             # actual actionable/exfiltration-shaped payload -- a genuine
             # remediation note ("recommended fix: upgrade to v2.3") is
             # common and fine on its own; it's the framing PLUS a command
             # or credential reference together that's the real signal.
             window = " ".join(doc.lines[line_no - 1: line_no + 2])
-            if _ACTIONABLE_COMMAND.search(window):
+            if _ACTIONABLE_COMMAND.search(canonical(window)):
                 findings.append(Finding(
                     check="fake_remediation",
                     severity=Severity.CRITICAL,

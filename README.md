@@ -49,6 +49,8 @@ Documents are treated as untrusted text. The scanner does not execute commands, 
 
 ## Limitations
 
+Rules match a normalised form of each line, so spacing tricks, look-alike letters, full-width text and zero-width characters do not evade them (and look-alike letters are reported in their own right). Rewording an instruction so it matches no rule still does.
+
 Detection is heuristic and corpus-dependent. Novel phrasing, multimodal payloads, or attacks outside implemented rule families can evade detection.
 
 ## Development

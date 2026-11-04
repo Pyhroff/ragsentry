@@ -26,6 +26,7 @@ from collections import Counter
 
 from ragsentry.document import Document
 from ragsentry.findings import Finding, Severity
+from ragsentry.normalize import canonical
 
 _STOPWORDS = {
     "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "is", "are",
@@ -65,7 +66,7 @@ def check_retrieval_manipulation(doc: Document) -> list[Finding]:
     findings: list[Finding] = []
 
     for start_line, para in _paragraphs(doc):
-        words = [w.lower() for w in _WORD.findall(para)]
+        words = _WORD.findall(canonical(para))
         content_words = [w for w in words if w not in _STOPWORDS]
 
         if len(content_words) >= _STUFFING_MIN_WORDS:
@@ -89,7 +90,7 @@ def check_retrieval_manipulation(doc: Document) -> list[Finding]:
                     snippet=para.strip()[:200],
                 ))
 
-        question_hits = _QUESTION_PHRASE.findall(para)
+        question_hits = _QUESTION_PHRASE.findall(canonical(para))
         if len(question_hits) >= _QUESTION_BAIT_MIN_COUNT:
             findings.append(Finding(
                 check="retrieval_manipulation",
