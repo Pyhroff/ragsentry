@@ -19,7 +19,7 @@ class Document:
     lines: list[str]
 
     @classmethod
-    def load(cls, path: Path) -> "Document":
+    def load(cls, path: str | Path) -> "Document":
         text = Path(path).read_text(encoding="utf-8", errors="replace")
         return cls(path=str(path), lines=text.splitlines())
 
