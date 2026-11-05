@@ -47,6 +47,10 @@ samples/poisoned_doc.md
 
 `--fail-on <low|medium|high|critical>` exits non-zero at or above that severity. Through the umbrella, `aisec scan . --rag ./docs` adds SARIF, baselines and job summaries.
 
+## Measured results
+
+On attacks written by others (pre-registered, run once; [aisec-suite STUDY section 3e](https://github.com/Pyhroff/aisec-suite/blob/master/docs/STUDY.md)), ragsentry 1.1.0 caught **0 of 1,054** InjecAgent tool responses as written and all 1,054 that carry the "IMPORTANT!!! Ignore all previous instructions" prefix. On BIPIA's 75 test attacks inserted into emails and tables (450 documents) it caught 9, all in tables, where it also flags 6 of 150 clean documents: those hits are table artefacts, not detections. It recognises override phrasing, authority tags and hidden characters; a plain request written into a document passes it.
+
 ## Limitations
 
 - Phrase and structure rules: novel phrasing, multimodal payloads and attacks outside the implemented families evade them. Findings are review input, not verdicts.
