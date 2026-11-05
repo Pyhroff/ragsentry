@@ -22,6 +22,7 @@ import re
 
 from ragsentry.document import Document
 from ragsentry.findings import Finding, Severity
+from ragsentry.normalize import canonical
 
 _OVERRIDE_PATTERNS = [
     (r"\bignore (all |any )?(previous|prior|earlier) (instructions|context)\b", "instruction-override phrasing"),
@@ -61,20 +62,22 @@ def _is_explanatory_security_text(text: str) -> bool:
 
 def check_instruction_injection(doc: Document) -> list[Finding]:
     findings: list[Finding] = []
-    normalized_lines = [line.lower() for line in doc.lines]
+    normalized_lines = [canonical(line) for line in doc.lines]
 
     # Preserve precise line-level findings for ordinary single-line attacks.
     for line_no, line in enumerate(doc.lines, start=1):
         lowered = normalized_lines[line_no - 1]
-        if _is_explanatory_security_text(lowered):
-            continue
+        # The example/disclaimer wording is attacker-controllable text, so it downgrades a match instead of
+        # suppressing it: "Example (not an instruction): ignore all previous instructions" must stay visible.
+        explanatory = _is_explanatory_security_text(lowered)
 
         for pattern, label in _OVERRIDE_PATTERNS:
             if re.search(pattern, lowered):
                 findings.append(Finding(
                     check="instruction_injection",
-                    severity=Severity.CRITICAL,
-                    title=f"Instruction aimed at a future retrieving model ({label})",
+                    severity=Severity.MEDIUM if explanatory else Severity.CRITICAL,
+                    title=(f"Instruction pattern inside text labelled as an example ({label})" if explanatory
+                           else f"Instruction aimed at a future retrieving model ({label})"),
                     detail=(
                         f"Line {line_no} reads as an instruction directed at whatever model "
                         f"later retrieves this chunk as context, not as information for a "
@@ -87,7 +90,7 @@ def check_instruction_injection(doc: Document) -> list[Finding]:
                 ))
                 break
 
-        if _FAKE_TAG.match(line) and _IMPERATIVE.search(lowered):
+        if _FAKE_TAG.match(lowered) and _IMPERATIVE.search(lowered):
             findings.append(Finding(
                 check="instruction_injection",
                 severity=Severity.CRITICAL,
@@ -111,9 +114,8 @@ def check_instruction_injection(doc: Document) -> list[Finding]:
             window_lines = doc.lines[start:start + window_size]
             if any(not line.strip() for line in window_lines):
                 continue
-            combined = " ".join(line.strip() for line in window_lines).lower()
-            if _is_explanatory_security_text(combined):
-                continue
+            combined = canonical(" ".join(line.strip() for line in window_lines))
+            explanatory = _is_explanatory_security_text(combined)
             for pattern, label in _OVERRIDE_PATTERNS:
                 if not re.search(pattern, combined):
                     continue
@@ -125,8 +127,9 @@ def check_instruction_injection(doc: Document) -> list[Finding]:
                 seen_multiline.add(key)
                 findings.append(Finding(
                     check="instruction_injection",
-                    severity=Severity.CRITICAL,
-                    title=f"Multi-line instruction aimed at a future retrieving model ({label})",
+                    severity=Severity.MEDIUM if explanatory else Severity.CRITICAL,
+                    title=(f"Multi-line instruction pattern inside text labelled as an example ({label})" if explanatory
+                           else f"Multi-line instruction aimed at a future retrieving model ({label})"),
                     detail=(
                         f"Lines {start + 1}–{start + window_size} contain instruction-override "
                         f"phrasing after adjacent lines are normalized. Splitting a phrase across "
