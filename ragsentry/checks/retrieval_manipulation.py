@@ -38,35 +38,58 @@ _QUESTION_PHRASE = re.compile(
     r"\b(how do i|how to|what is the best|why does|where can i|when should i)\b", re.IGNORECASE
 )
 
+# Whole-line import statements in source files. A block of imports repeats the
+# word "import" by construction, which is not stuffing. Only full, well-formed
+# statements match, so an attacker cannot hide stuffed prose behind the word.
+_IMPORT_LINE = re.compile(
+    r"""^\s*(?:
+        import\s+[\w.]+(?:\s+as\s+\w+)?(?:\s*,\s*[\w.]+(?:\s+as\s+\w+)?)*
+      | from\s+[\w.]+\s+import\s+(?:\*|\(?[\w\s,]+\)?)(?:\s+as\s+\w+)?
+      | import\s+(?:[\w*{}\s,]+)\s+from\s+['"][^'"]+['"]
+      | import\s+['"][^'"]+['"]
+      | (?:const|let|var)\s+[\w{}\s,]+=\s*require\(\s*['"][^'"]+['"]\s*\)
+    )\s*;?\s*$""",
+    re.VERBOSE,
+)
+
 _STUFFING_MIN_WORDS = 25
 _STUFFING_RATIO_THRESHOLD = 0.30
 _QUESTION_BAIT_MIN_COUNT = 5
 
 
-def _paragraphs(doc: Document) -> list[tuple[int, str]]:
-    """Return (starting_line_number, paragraph_text) for each blank-line-separated block."""
-    paras: list[tuple[int, str]] = []
+def _paragraph_lines(doc: Document) -> list[tuple[int, list[str]]]:
+    """Return (starting_line_number, lines) for each blank-line-separated block."""
+    paras: list[tuple[int, list[str]]] = []
     buf: list[str] = []
     start = 1
     for i, line in enumerate(doc.lines, start=1):
         if line.strip() == "":
             if buf:
-                paras.append((start, " ".join(buf)))
+                paras.append((start, buf))
                 buf = []
             continue
         if not buf:
             start = i
         buf.append(line)
     if buf:
-        paras.append((start, " ".join(buf)))
+        paras.append((start, buf))
     return paras
+
+
+def _paragraphs(doc: Document) -> list[tuple[int, str]]:
+    """Return (starting_line_number, paragraph_text) for each blank-line-separated block."""
+    return [(start, " ".join(lines)) for start, lines in _paragraph_lines(doc)]
 
 
 def check_retrieval_manipulation(doc: Document) -> list[Finding]:
     findings: list[Finding] = []
 
-    for start_line, para in _paragraphs(doc):
-        words = _WORD.findall(canonical(para))
+    for start_line, para_lines in _paragraph_lines(doc):
+        para = " ".join(para_lines)
+        stuffing_text = " ".join(
+            ln for ln in para_lines if not _IMPORT_LINE.match(ln)
+        )
+        words = _WORD.findall(canonical(stuffing_text))
         content_words = [w for w in words if w not in _STOPWORDS]
 
         if len(content_words) >= _STUFFING_MIN_WORDS:
