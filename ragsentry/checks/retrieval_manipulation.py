@@ -42,15 +42,17 @@ _QUESTION_PHRASE = re.compile(
 # word "import" by construction, which is not stuffing. Only full, well-formed
 # statements match, so an attacker cannot hide stuffed prose behind the word.
 _IMPORT_LINE = re.compile(
-    r"""^\s*(?:
-        import\s+[\w.]+(?:\s+as\s+\w+)?(?:\s*,\s*[\w.]+(?:\s+as\s+\w+)?)*
-      | from\s+[\w.]+\s+import\s+(?:\*|\(?[\w\s,]+\)?)(?:\s+as\s+\w+)?
-      | import\s+(?:[\w*{}\s,]+)\s+from\s+['"][^'"]+['"]
-      | import\s+['"][^'"]+['"]
-      | (?:const|let|var)\s+[\w{}\s,]+=\s*require\(\s*['"][^'"]+['"]\s*\)
-    )\s*;?\s*$""",
+    r"""^[ \t]*(?:
+        import[ \t]+[\w.]+(?:[ \t]+as[ \t]+\w+)?(?:[ \t]*,[ \t]*[\w.]+(?:[ \t]+as[ \t]+\w+)?)*
+      | from[ \t]+[\w.]+[ \t]+import[ \t]+(?:\*|\(?[\w,][\w, \t]*\)?)(?:[ \t]+as[ \t]+\w+)?
+      | import[ \t]+[\w*{][\w*{}, \t]*[ \t]from[ \t]+['"][^'"]+['"]
+      | import[ \t]+['"][^'"]+['"]
+      | (?:const|let|var)[ \t]+[\w{][\w{}, \t]*=[ \t]*require\([ \t]*['"][^'"]+['"][ \t]*\)
+    )[ \t]*;?[ \t]*$""",
     re.VERBOSE,
 )
+# Real import statements are short. Longer lines are never matched, which also bounds the regex's work on hostile input.
+_IMPORT_LINE_MAX = 300
 
 _STUFFING_MIN_WORDS = 25
 _STUFFING_RATIO_THRESHOLD = 0.30
@@ -87,7 +89,7 @@ def check_retrieval_manipulation(doc: Document) -> list[Finding]:
     for start_line, para_lines in _paragraph_lines(doc):
         para = " ".join(para_lines)
         stuffing_text = " ".join(
-            ln for ln in para_lines if not _IMPORT_LINE.match(ln)
+            ln for ln in para_lines if not (len(ln) <= _IMPORT_LINE_MAX and _IMPORT_LINE.match(ln))
         )
         words = _WORD.findall(canonical(stuffing_text))
         content_words = [w for w in words if w not in _STOPWORDS]

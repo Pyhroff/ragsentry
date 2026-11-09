@@ -50,6 +50,9 @@ _IMPERATIVE = re.compile(
 )
 
 
+_COMPILED_PATTERNS = [(re.compile(pattern), label) for pattern, label in _OVERRIDE_PATTERNS]
+
+
 def _is_explanatory_security_text(text: str) -> bool:
     lowered = text.lower()
     return (
@@ -67,12 +70,14 @@ def check_instruction_injection(doc: Document) -> list[Finding]:
     # Preserve precise line-level findings for ordinary single-line attacks.
     for line_no, line in enumerate(doc.lines, start=1):
         lowered = normalized_lines[line_no - 1]
+        if not lowered:
+            continue
         # The example/disclaimer wording is attacker-controllable text, so it downgrades a match instead of
         # suppressing it: "Example (not an instruction): ignore all previous instructions" must stay visible.
         explanatory = _is_explanatory_security_text(lowered)
 
-        for pattern, label in _OVERRIDE_PATTERNS:
-            if re.search(pattern, lowered):
+        for pattern, label in _COMPILED_PATTERNS:
+            if pattern.search(lowered):
                 findings.append(Finding(
                     check="instruction_injection",
                     severity=Severity.MEDIUM if explanatory else Severity.CRITICAL,
@@ -116,10 +121,10 @@ def check_instruction_injection(doc: Document) -> list[Finding]:
                 continue
             combined = canonical(" ".join(line.strip() for line in window_lines))
             explanatory = _is_explanatory_security_text(combined)
-            for pattern, label in _OVERRIDE_PATTERNS:
-                if not re.search(pattern, combined):
+            for pattern, label in _COMPILED_PATTERNS:
+                if not pattern.search(combined):
                     continue
-                if any(re.search(pattern, line) for line in normalized_lines[start:start + window_size]):
+                if any(pattern.search(line) for line in normalized_lines[start:start + window_size]):
                     continue
                 key = (start + 1, label)
                 if key in seen_multiline:
