@@ -4,7 +4,10 @@ Rules match on ``canonical(line)``; evidence and line numbers still come from th
 check keeps looking at the raw characters (so the obfuscation itself is still reported).
 
 * NFKC folds full-width and mathematical letters ("ｉｇｎｏｒｅ", "𝐢𝐠𝐧𝐨𝐫𝐞").
-* Invisible format characters (category Cf: zero-width spaces/joiners, bidi controls, tag characters) are dropped.
+* Unicode tag characters (U+E0020-U+E007E) are decoded to the ASCII they mirror. They render as nothing, but a
+  model still reads them, so "ASCII smuggling" hides a whole instruction in them; dropping them would erase the
+  payload before the rules could see it.
+* Other invisible format characters (category Cf: zero-width spaces/joiners, bidi controls) are dropped.
 * Look-alike letters from other scripts are folded to Latin ("ignоre" with a Cyrillic "о").
 * Spaced-out letters are re-joined ("i g n o r e"), whitespace runs collapse, and the result is lower-cased.
 """
@@ -31,13 +34,15 @@ _CONFUSABLES = str.maketrans({
     "ᴋ": "k", "ʟ": "l", "ᴍ": "m", "ɴ": "n", "ᴏ": "o", "ᴘ": "p", "ʀ": "r", "ꜱ": "s",
     "ᴛ": "t", "ᴜ": "u", "ᴠ": "v", "ᴡ": "w", "ʏ": "y", "ᴢ": "z",
 })
+# U+E0020-U+E007E mirror printable ASCII 0x20-0x7E one-to-one.
+_TAG_DECODE = {cp: cp - 0xE0000 for cp in range(0xE0020, 0xE007F)}
 _SPACED = re.compile(r"\b(?:[a-z] ){2,}[a-z]\b")
 _LATIN = re.compile(r"[A-Za-z]")
 _WORD = re.compile(r"\w+")
 
 
 def canonical(text: str) -> str:
-    s = unicodedata.normalize("NFKC", text)
+    s = unicodedata.normalize("NFKC", text.translate(_TAG_DECODE))
     s = "".join(ch for ch in s if unicodedata.category(ch) != "Cf")
     s = s.translate(_CONFUSABLES).lower()
     s = _SPACED.sub(lambda m: m.group(0).replace(" ", ""), s)

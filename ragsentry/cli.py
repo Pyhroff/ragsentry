@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 
 import typer
@@ -19,6 +20,17 @@ def scan(
     json_out: str | None = typer.Option(None, "--json", help="Write JSON results to this path."),
     fail_on: str | None = typer.Option(None, "--fail-on", help="Exit non-zero if any finding is at or above this severity."),
 ) -> None:
+    threshold: Severity | None = None
+    if fail_on:
+        try:
+            threshold = Severity(fail_on.lower())
+        except ValueError:
+            print(f"Unknown --fail-on severity: {fail_on!r} (use low, medium, high or critical)", file=sys.stderr)
+            raise typer.Exit(code=2)
+    if not os.path.exists(path):
+        print(f"No such file or directory: {path}", file=sys.stderr)
+        raise typer.Exit(code=2)
+
     results = scan_path(path)
     print(render_text(results))
 
@@ -27,12 +39,7 @@ def scan(
             f.write(to_json(results))
         print(f"\nJSON written to {json_out}")
 
-    if fail_on:
-        try:
-            threshold = Severity(fail_on.lower())
-        except ValueError:
-            print(f"\nUnknown --fail-on severity: {fail_on!r}", file=sys.stderr)
-            raise typer.Exit(code=2)
+    if threshold is not None:
         worst = max_severity(results)
         if worst is not None and _FAIL_ORDER[worst] >= _FAIL_ORDER[threshold]:
             raise typer.Exit(code=1)

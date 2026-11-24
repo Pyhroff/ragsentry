@@ -1,7 +1,8 @@
 """
 Same structural-trick detection as memsentry's hidden_payload, applied to
-RAG source documents: zero-width/invisible Unicode (can hide text inside
-a chunk that still gets embedded and later surfaced to a model), and
+RAG source documents: zero-width/invisible Unicode, including Unicode tag
+characters that can spell out a whole instruction (they hide text inside a
+chunk that still gets embedded and later surfaced to a model), and
 suspicious base64-shaped blobs (a way to stage or smuggle payload data
 inside content that otherwise reads as an ordinary document).
 """
@@ -14,7 +15,15 @@ from ragsentry.document import Document
 from ragsentry.findings import Finding, Severity
 from ragsentry.normalize import mixed_script_words
 
-_ZERO_WIDTH_CHARS = {"​", "‌", "‍", "⁠", "﻿"}
+# Characters that render as nothing (or reorder what is shown) while a model still reads them: zero-width
+# spaces/joiners, the BOM, invisible maths operators and bidi embedding/override/isolate controls ("Trojan Source").
+_ZERO_WIDTH_CHARS = frozenset(
+    "\u200b\u200c\u200d\u2060\ufeff"
+    "\u2061\u2062\u2063\u2064"
+    "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+)
+_BLACK_FLAG = "\U0001f3f4"
+_CANCEL_TAG = "\U000e007f"
 _BASE64_BLOB = re.compile(r"\b[A-Za-z0-9+/]{80,}={0,2}\b")
 
 
@@ -33,11 +42,41 @@ def _legit_emoji_zwj(line: str, i: int) -> bool:
     return i > 0 and i + 1 < len(line) and _is_emoji_char(line[i - 1]) and _is_emoji_char(line[i + 1])
 
 
+def _is_tag(ch: str) -> bool:
+    return 0xE0000 <= ord(ch) <= 0xE007F
+
+
+def _hidden_chars(line: str) -> list[str]:
+    """Invisible characters on a line, skipping legitimate emoji constructions.
+
+    Unicode tag characters (U+E0000-U+E007F) are reported as a run: they can spell out a complete hidden
+    instruction ("ASCII smuggling"). The one legitimate use, a subdivision flag such as Scotland's (black flag +
+    tag letters + CANCEL TAG), is not reported; nor is a zero-width joiner between two emoji.
+    """
+    found: list[str] = []
+    i, n = 0, len(line)
+    while i < n:
+        ch = line[i]
+        if _is_tag(ch):
+            j = i
+            while j < n and _is_tag(line[j]):
+                j += 1
+            run = line[i:j]
+            if not (i > 0 and line[i - 1] == _BLACK_FLAG and len(run) >= 2 and run.endswith(_CANCEL_TAG)):
+                found.extend(run)
+            i = j
+            continue
+        if ch in _ZERO_WIDTH_CHARS and not _legit_emoji_zwj(line, i):
+            found.append(ch)
+        i += 1
+    return found
+
+
 def check_hidden_payload(doc: Document) -> list[Finding]:
     findings: list[Finding] = []
 
     for line_no, line in enumerate(doc.lines, start=1):
-        zw_found = [ch for i, ch in enumerate(line) if ch in _ZERO_WIDTH_CHARS and not _legit_emoji_zwj(line, i)]
+        zw_found = _hidden_chars(line) if not line.isascii() else []
         if zw_found:
             findings.append(Finding(
                 check="hidden_payload",
